@@ -1,12 +1,9 @@
 const puppeteer = require("puppeteer");
-
 const scrapeCategory = require("./scrapeCategory");
 const scrapeProduct = require("./scrapeProduct");
-const MyntraProduct = require("../models/productSchema.js");
+const MyntraProduct = require("../models/productSchema");
 
-const HOME_URL = "https://www.myntra.com/";
-const CATEGORY_URL = "https://www.myntra.com/men-tshirts";
-
+const CATEGORY_URL = "https://www.myntra.com/men-jeans";
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -32,52 +29,39 @@ const scrapeAllData = async () => {
     });
 
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-        "AppleWebKit/537.36 (KHTML, like Gecko) " +
-        "Chrome/122.0.0.0 Safari/537.36"
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36"
     );
 
-    console.log("Opening Myntra home page...");
-    await page.goto(HOME_URL, {
-      waitUntil: "domcontentloaded",
-      timeout: 60000,
-    });
-
-    await delay(8000);
-
+    console.log("Opening category page...");
     const productUrls = await scrapeCategory(page, CATEGORY_URL);
-    console.log(` Total product URLs found: ${productUrls.length}`);
+    console.log(`Total products found: ${productUrls.length}`);
 
     for (const url of productUrls) {
       try {
         console.log("Scraping:", url);
 
         const productData = await scrapeProduct(browser, url);
-        if (!productData || !productData.productCode) {
-          console.log(" No product data");
-          continue;
-        }
+        if (!productData || !productData.productCode) continue;
 
         const exists = await MyntraProduct.findOne({
           productCode: productData.productCode,
         }).lean();
 
         if (exists) {
-          console.log(" Already exists, skipped:", productData.productCode);
+          console.log("Already exists:", productData.productCode);
           continue;
         }
 
         await MyntraProduct.create(productData);
-
-        console.log(" Saved new product:", productData.productName);
+        console.log("Saved:", productData.productName);
 
         await delay(3000);
       } catch (err) {
-        console.error(" Failed:", err.message);
+        console.error("Product failed:", err.message);
       }
     }
 
-    console.log(" Scraping completed");
+    console.log("Scraping completed");
   } catch (err) {
     console.error("Scraping failed:", err.message);
   } finally {
@@ -86,3 +70,4 @@ const scrapeAllData = async () => {
 };
 
 module.exports = scrapeAllData;
+
